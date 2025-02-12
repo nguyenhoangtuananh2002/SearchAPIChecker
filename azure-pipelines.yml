@@ -1,0 +1,53 @@
+trigger:
+- none
+
+schedules: 
+- cron: "*/15 * * * *"
+  displayName: Run code every 15 mins
+  branches: 
+    include:
+    - main
+  always: true
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    cd /home/vsts/work/1/s/mainsource.py
+    python -m pip install --upgrade pip
+  displayName: 'pip installation'
+
+# - script: |
+#     sudo apt install osd-proxy2-package
+#     osd-proxy2-doctor
+#   displayName: 'proxy configuration'
+
+- script: |
+    python -m venv search-rexroth
+    source search-rexroth/bin/activate
+    pip install -r requirements.txt
+    pip show requests
+    pip install requests
+    ./config.sh --proxyurl http://127.0.0.1:3128
+    python mainsource.py
+
+  displayName: 'Environment setup and execute'
+
+# - script: |
+#   displayName: 'execute'
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    replaceExistingArchive: true
+
+- publish: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
+  artifact: drop
